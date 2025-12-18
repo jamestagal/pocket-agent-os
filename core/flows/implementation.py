@@ -115,6 +115,7 @@ def create_implementation_flow(
     # Delegation → result processing
     delegation - "delegated" >> result_processor
     delegation - "error" >> task_selector  # Skip to next task on error
+    delegation - "print_complete" >> session_end  # In print mode, exit after printing
     
     # Result processing branching
     result_processor - "failed" >> task_selector  # Try next task

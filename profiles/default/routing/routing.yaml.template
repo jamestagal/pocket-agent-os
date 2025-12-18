@@ -1,8 +1,8 @@
 # Agent Routing Configuration
 # Defines how tasks are routed to specialist agents
 #
-# This file is OPTIONAL. If not present, all tasks route to 'implementer'.
-# Create this file when you want to leverage specialist agents.
+# This file is generated during project installation.
+# Customize routing by editing this file.
 
 # ============================================================================
 # SPECIALIST MAPPINGS
@@ -11,18 +11,17 @@
 # ============================================================================
 
 specialists:
-  # Frontend tasks (UI, components, pages, client-side logic)
-  # Uncomment and set to your frontend specialist agent name
-  # frontend: sveltekit-specialist
+  # Frontend tasks (UI, components, pages, styling, client-side logic)
+  frontend: frontend-specialist
   
-  # Backend tasks (API, server logic, business rules)
-  # backend: flask-specialist
+  # API tasks (server routes, form actions, query helpers)
+  api: api-specialist
   
-  # Database tasks (models, migrations, queries)
-  # database: prisma-specialist
+  # Database tasks (schema, migrations, models, relations)
+  database: database-specialist
   
-  # Testing tasks (test writing, test fixes)
-  # testing: test-specialist
+  # Testing tasks - uses implementer (testing is embedded in each specialist)
+  testing: implementer
   
   # Default fallback for any unmatched domain
   default: implementer
@@ -51,9 +50,15 @@ domain_detection:
       - "style"
       - "responsive"
       - "animation"
+      - "svelte"
+      - "form"
+      - "button"
+      - "modal"
+      - "card"
       
   api:
     path_patterns:
+      - "src/routes/**/+page.server.ts"
       - "src/routes/**/+server.ts"
       - "src/lib/server/**"
       - "api/**"
@@ -65,6 +70,10 @@ domain_detection:
       - "middleware"
       - "authentication"
       - "authorization"
+      - "action"
+      - "load function"
+      - "query helper"
+      - "server"
       
   database:
     path_patterns:
@@ -73,6 +82,7 @@ domain_detection:
       - "**/models/**"
       - "**/migrations/**"
       - "**/db/**"
+      - "**/schema.ts"
     keywords:
       - "database"
       - "model"
@@ -81,6 +91,10 @@ domain_detection:
       - "schema"
       - "table"
       - "relation"
+      - "drizzle"
+      - "prisma"
+      - "foreign key"
+      - "index"
 
   testing:
     path_patterns:
@@ -93,6 +107,8 @@ domain_detection:
       - "spec"
       - "coverage"
       - "mock"
+      - "vitest"
+      - "jest"
 
 
 # ============================================================================
@@ -105,12 +121,9 @@ spec_overrides:
   # "*-security-*":
   #   all_tasks: security-specialist
   
-  # Example: Complex auth spec uses auth specialist for everything
+  # Example: Complex auth spec uses api specialist for everything
   # "*-auth-*":
-  #   all_tasks: auth-specialist
-  #   standards:
-  #     - backend/authentication
-  #     - global/security
+  #   all_tasks: api-specialist
 
 
 # ============================================================================
@@ -119,15 +132,23 @@ spec_overrides:
 # ============================================================================
 
 task_group_overrides:
-  # Example: Task group 1 is always setup/scaffolding - use generalist
-  # 1:
-  #   agent: implementer
-  #   reason: "Setup tasks are general-purpose"
+  # Task group names to agent mappings
+  # These match the task group headers in tasks.md
   
-  # Example: Final task group is always verification
-  # -1:  # -1 means "last group"
-  #   agent: implementation-verifier
-  #   reason: "Final verification phase"
+  "Database Layer":
+    agent: database-specialist
+    
+  "API Layer":
+    agent: api-specialist
+    
+  "Frontend Components":
+    agent: frontend-specialist
+    
+  "UI Components":
+    agent: frontend-specialist
+    
+  "Testing":
+    agent: implementer
 
 
 # ============================================================================
@@ -148,5 +169,5 @@ behavior:
   log_decisions: true
   
   # Allow manual override in task description
-  # e.g., "[use:security-specialist] Implement OAuth flow"
+  # e.g., "[use:api-specialist] Implement OAuth flow"
   allow_inline_override: true

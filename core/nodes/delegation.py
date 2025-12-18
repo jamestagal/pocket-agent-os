@@ -369,12 +369,15 @@ class ClaudeCodeDelegationNode(Node):
         shared["delegation_history"].append(shared["delegation"])
         
         # Print instruction if in print mode
-        if exec_res["mode"] == "print":
+        mode = exec_res.get("mode", "print")
+        if mode == "print":
             print("\n" + "=" * 70)
             print("DELEGATION INSTRUCTION")
             print("=" * 70)
             print(exec_res["instruction"])
             print("=" * 70 + "\n")
+            # In print mode, exit after printing so user can execute manually
+            return "print_complete"
         
         if exec_res.get("error"):
             return "error"

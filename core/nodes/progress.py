@@ -210,6 +210,9 @@ class TaskSelectorNode(Node):
             progress["current_task"] = task_id
         shared["progress"] = progress
         
+        # Debug output
+        print(f"   DEBUG TaskSelector: remaining={exec_res['remaining_count']}, blocked={exec_res['blocked_count']}, selected={exec_res['selected_task'] is not None}")
+        
         if exec_res["selected_task"]:
             return "task_selected"
         

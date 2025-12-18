@@ -34,7 +34,11 @@ def create_implementation_flow(
     Create a complete implementation workflow flow.
     
     Args:
-        delegation_mode: How to delegate - "print", "file", or "cli"
+        delegation_mode: How to delegate tasks:
+            - "print": Print ONE delegation and exit (legacy)
+            - "batch": Print ALL delegations, then exit with summary
+            - "file": Write delegations to file
+            - "cli": Execute via claude CLI
         auto_checkpoint: Whether to checkpoint after each task
         self_improve: Whether to update expertise after tasks
     
@@ -42,7 +46,7 @@ def create_implementation_flow(
         Flow ready to execute
     
     Usage:
-        flow = create_implementation_flow()
+        flow = create_implementation_flow(delegation_mode="batch")
         shared = {
             "project_root": "/path/to/project",
             "spec_name": "my-feature",
@@ -65,29 +69,26 @@ def create_implementation_flow(
     
     # Build flow graph
     #
+    # BATCH MODE FLOW:
     # session_start → load_expertise → task_selector
     #                                      ↓
     #                    [all_complete] → session_end
+    #                    [all_printed] → session_end (batch summary)
     #                    [task_selected] ↓
     #                               progress_guard
     #                                      ↓
-    #                    [blocked] → session_end (with warning)
+    #                    [blocked] → task_selector (skip blocked)
     #                    [valid] ↓
     #                               agent_router
     #                                      ↓
     #                               delegation
     #                                      ↓
-    #                               result_processor
+    #                    [printed] → task_selector (continue batch)
+    #                    [delegated] → result_processor
     #                                      ↓
     #                    [failed] → task_selector (retry next)
     #                    [success] ↓
-    #                               mark_complete
-    #                                      ↓
-    #                               self_improver (if enabled)
-    #                                      ↓
-    #                               checkpoint (if enabled)
-    #                                      ↓
-    #                               task_selector (loop)
+    #                               mark_complete → ... → task_selector (loop)
     
     # Session start connections
     session_start - "fresh" >> load_expertise
@@ -101,21 +102,23 @@ def create_implementation_flow(
     # Task selection branching
     task_selector - "all_complete" >> session_end
     task_selector - "all_blocked" >> session_end
+    task_selector - "all_printed" >> session_end  # Batch mode: all tasks printed
     task_selector - "task_selected" >> progress_guard
     
     # Progress guard
     progress_guard - "valid" >> agent_router
-    progress_guard - "blocked" >> session_end
+    progress_guard - "blocked" >> task_selector  # Skip blocked tasks, try next
     
     # Agent routing → delegation
     agent_router - "high" >> delegation
     agent_router - "medium" >> delegation
     agent_router - "low" >> delegation
     
-    # Delegation → result processing
-    delegation - "delegated" >> result_processor
+    # Delegation branching
+    delegation - "delegated" >> result_processor  # CLI/file mode: process result
     delegation - "error" >> task_selector  # Skip to next task on error
-    delegation - "print_complete" >> session_end  # In print mode, exit after printing
+    delegation - "print_complete" >> session_end  # Legacy print mode: exit after one
+    delegation - "printed" >> task_selector  # Batch mode: continue to next task
     
     # Result processing branching
     result_processor - "failed" >> task_selector  # Try next task
@@ -148,7 +151,7 @@ class ImplementationFlow(Flow):
     A class-based flow for more control over configuration.
     
     Usage:
-        flow = ImplementationFlow(delegation_mode="print")
+        flow = ImplementationFlow(delegation_mode="batch")
         shared = {
             "project_root": "/path/to/project",
             "spec_name": "my-feature",

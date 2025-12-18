@@ -10,7 +10,7 @@ Handles task progress:
 import os
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -115,9 +115,13 @@ class TaskSelectorNode(Node):
     2. Priority field
     3. Order in task list
     
+    Handles batch mode by tracking printed tasks separately from completed tasks.
+    
     Shared Store Inputs:
     - progress: Progress state with tasks list
     - task_filter: Optional filter criteria
+    - printed_tasks: Set of task IDs already printed (batch mode)
+    - delegation_mode: Current delegation mode
     
     Shared Store Outputs:
     - current_task: Selected task
@@ -128,10 +132,16 @@ class TaskSelectorNode(Node):
         """Gather task list."""
         progress = shared.get("progress", {})
         
+        # printed_tasks can be a set or list depending on source
+        printed_raw = shared.get("printed_tasks", [])
+        printed_tasks = set(printed_raw) if isinstance(printed_raw, list) else printed_raw
+        
         return {
             "tasks": progress.get("tasks", []),
             "completed": set(progress.get("completed", [])),
             "failed": [f.get("task_id") for f in progress.get("failed", [])],
+            "printed_tasks": printed_tasks,
+            "delegation_mode": shared.get("delegation_mode", "print"),
             "task_filter": shared.get("task_filter"),
         }
     
@@ -141,15 +151,20 @@ class TaskSelectorNode(Node):
             "selected_task": None,
             "remaining_count": 0,
             "blocked_count": 0,
+            "printed_count": 0,
+            "all_printed": False,
         }
         
         tasks = inputs["tasks"]
         completed = inputs["completed"]
         failed_ids = set(inputs["failed"])
+        printed_tasks = inputs["printed_tasks"]
+        delegation_mode = inputs["delegation_mode"]
         task_filter = inputs["task_filter"]
         
         available_tasks = []
         blocked_tasks = []
+        printed_but_not_complete = []
         
         for task in tasks:
             # Normalize task
@@ -160,6 +175,11 @@ class TaskSelectorNode(Node):
             
             # Skip completed tasks
             if task_id in completed:
+                continue
+            
+            # In batch mode, track printed tasks separately
+            if delegation_mode == "batch" and task_id in printed_tasks:
+                printed_but_not_complete.append(task)
                 continue
             
             # Skip failed tasks (unless retry requested)
@@ -187,6 +207,13 @@ class TaskSelectorNode(Node):
         
         result["remaining_count"] = len(available_tasks) + len(blocked_tasks)
         result["blocked_count"] = len(blocked_tasks)
+        result["printed_count"] = len(printed_but_not_complete)
+        
+        # In batch mode, check if all tasks have been printed
+        if delegation_mode == "batch":
+            total_pending = len(available_tasks) + len(blocked_tasks) + len(printed_but_not_complete)
+            if len(printed_but_not_complete) > 0 and len(available_tasks) == 0:
+                result["all_printed"] = True
         
         if available_tasks:
             # Sort by priority (higher first), then by order
@@ -212,6 +239,10 @@ class TaskSelectorNode(Node):
         
         if exec_res["selected_task"]:
             return "task_selected"
+        
+        # In batch mode, return "all_printed" when all tasks have been printed
+        if exec_res["all_printed"]:
+            return "all_printed"
         
         if exec_res["blocked_count"] > 0:
             return "all_blocked"

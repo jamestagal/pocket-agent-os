@@ -453,6 +453,8 @@ class SessionEndNode(Node):
             },
             "auto_commit": shared.get("auto_commit", False),
             "spec_name": session.get("spec_name"),
+            "delegation_history": shared.get("delegation_history", []),
+            "delegation_mode": shared.get("delegation_mode", "print"),
         }
     
     def exec(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -521,6 +523,46 @@ class SessionEndNode(Node):
         """Store summary and return."""
         shared["session_summary"] = exec_res["summary"]
         shared["session"]["ended_at"] = datetime.now().isoformat()
+        
+        # Print batch summary if we have delegation history
+        delegation_history = prep_res.get("delegation_history", [])
+        delegation_mode = prep_res.get("delegation_mode", "print")
+        
+        if delegation_mode == "batch" and delegation_history:
+            print("\n" + "=" * 70)
+            print("📋 BATCH DELEGATION SUMMARY")
+            print("=" * 70)
+            print(f"\n✅ Generated {len(delegation_history)} delegation(s):\n")
+            
+            # Group by agent
+            by_agent = {}
+            for d in delegation_history:
+                agent = d.get("agent", "unknown")
+                if agent not in by_agent:
+                    by_agent[agent] = []
+                by_agent[agent].append(d)
+            
+            for agent, delegations in by_agent.items():
+                print(f"\n🤖 {agent}:")
+                for d in delegations:
+                    task_id = d.get("task_id", "?")
+                    task_desc = d.get("task_description", "")[:50]
+                    print(f"   • Task {task_id}: {task_desc}...")
+            
+            print("\n" + "-" * 70)
+            print("📝 HOW TO USE THESE DELEGATIONS:")
+            print("-" * 70)
+            print("""
+Copy any delegation above and paste into Claude Code with:
+
+    Use the [agent-name] subagent to implement this task:
+    
+    [paste delegation instruction]
+
+Work through tasks in order (1.0 → 2.0 → 3.0 → 4.0) or pick based on priority.
+Each specialist agent has domain-specific expertise for optimal results.
+""")
+            print("=" * 70 + "\n")
         
         if exec_res["saved"]:
             return "saved"

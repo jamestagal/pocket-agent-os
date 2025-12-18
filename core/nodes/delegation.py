@@ -130,9 +130,15 @@ class ClaudeCodeDelegationNode(Node):
     4. Relevant expertise hints
     
     The instruction can be:
-    1. Printed for human to execute manually
+    1. Printed for human to execute manually (batch or single)
     2. Written to a pending delegations file
     3. Executed via claude CLI (if available)
+    
+    Delegation Modes:
+    - "print": Print ONE delegation and exit (legacy behavior)
+    - "batch": Print ALL delegations, then exit with summary
+    - "file": Write delegations to file
+    - "cli": Execute via claude CLI
     
     Shared Store Inputs:
     - current_task: Task to delegate
@@ -141,11 +147,12 @@ class ClaudeCodeDelegationNode(Node):
     - spec_files: Dict of all spec file contents (from SessionStartNode)
     - spec_visuals: List of visual file paths
     - expertise: Domain expertise to pass (optional)
-    - delegation_mode: "print" | "file" | "cli" (default: "print")
+    - delegation_mode: "print" | "batch" | "file" | "cli" (default: "print")
     
     Shared Store Outputs:
     - delegation: Dict with instruction, agent, context
     - delegation_history: Accumulated delegations
+    - printed_tasks: Set of task IDs that have been printed (batch mode)
     """
     
     def __init__(
@@ -254,80 +261,54 @@ class ClaudeCodeDelegationNode(Node):
         
         # Expertise hints
         if inputs["relevant_expertise"]:
-            expertise_notes = []
-            for domain, info in inputs["relevant_expertise"].items():
-                if isinstance(info, dict):
-                    notes = info.get("notes", str(info))
-                else:
-                    notes = str(info)
-                expertise_notes.append(f"- **{domain}**: {notes}")
-            if expertise_notes:
-                instruction_parts.append(f"\n## Expertise Hints\n\n" + "\n".join(expertise_notes))
+            expertise_parts = []
+            for domain, expertise in inputs["relevant_expertise"].items():
+                expertise_parts.append(f"- **{domain}**: {expertise}")
+            instruction_parts.append(f"\n## Expertise Hints\n\n" + "\n".join(expertise_parts))
         
-        # Reminder about task completion
-        instruction_parts.append(f"\n## After Implementation\n\nUpdate `{spec_path}/tasks.md` to mark this task as complete: `- [x]`")
+        # After implementation note
+        if spec_path:
+            instruction_parts.append(f"\n## After Implementation\n\nUpdate `{spec_path}/tasks.md` to mark this task as complete: `- [x]`")
         
         instruction = "\n".join(instruction_parts)
         
+        # Build result
         result = {
             "instruction": instruction,
             "agent": agent,
             "task_id": inputs["task_id"],
+            "task_description": task,
             "context": {
-                "task": inputs["task_description"],
-                "files": inputs["task_files"],
-                "spec": inputs["spec_path"],
-                "spec_files_count": len(spec_files),
-                "visuals_count": len(spec_visuals),
-                "product_files_count": len(product_files),
-                "expertise_domains": list(inputs["relevant_expertise"].keys()),
+                "spec_path": spec_path,
+                "files_count": len(spec_files),
+                "has_visuals": len(spec_visuals) > 0,
+                "has_expertise": len(inputs["relevant_expertise"]) > 0,
             },
             "delegated_at": datetime.now().isoformat(),
             "mode": inputs["delegation_mode"],
             "executed": False,
+            "output": None,
+            "error": None,
         }
         
-        # Execute based on mode
         mode = inputs["delegation_mode"]
         
-        if mode == "print":
-            # Just prepare the instruction (will be printed in post)
-            result["output"] = instruction
+        if mode == "file":
+            # Write delegation to pending file
+            pending_path = os.path.join(inputs["project_root"], "agent-os", "pending-delegations.md")
+            os.makedirs(os.path.dirname(pending_path), exist_ok=True)
             
-        elif mode == "file":
-            # Write to pending delegations file
-            delegations_file = os.path.join(
-                inputs["project_root"],
-                "agent-os/pending_delegations.json"
-            )
-            try:
-                os.makedirs(os.path.dirname(delegations_file), exist_ok=True)
-                
-                # Load existing delegations
-                existing = []
-                if os.path.exists(delegations_file):
-                    with open(delegations_file, 'r') as f:
-                        existing = json.load(f)
-                
-                # Add new delegation
-                existing.append({
-                    "instruction": instruction,
-                    "agent": agent,
-                    "task_id": inputs["task_id"],
-                    "spec_name": inputs["spec_name"],
-                    "created_at": result["delegated_at"],
-                    "status": "pending",
-                })
-                
-                with open(delegations_file, 'w') as f:
-                    json.dump(existing, f, indent=2)
-                
-                result["output"] = f"Delegation written to {delegations_file}"
-                result["executed"] = True
-            except IOError as e:
-                result["output"] = f"Failed to write delegation: {e}"
-                result["error"] = str(e)
-                
+            with open(pending_path, "a") as f:
+                f.write(f"\n\n{'=' * 70}\n")
+                f.write(f"Task: {inputs['task_id']} - {task[:50]}...\n")
+                f.write(f"Agent: {agent}\n")
+                f.write(f"{'=' * 70}\n\n")
+                f.write(instruction)
+                f.write("\n")
+            
+            result["output"] = f"Delegation written to {pending_path}"
+            result["executed"] = False
+        
         elif mode == "cli":
             # Try to execute via claude CLI
             try:
@@ -348,6 +329,8 @@ class ClaudeCodeDelegationNode(Node):
                 result["output"] = "Delegation timed out"
                 result["error"] = "timeout"
         
+        # For "print" and "batch" modes, output is handled in post()
+        
         return result
     
     def post(self, shared: Dict[str, Any], prep_res: Dict[str, Any], exec_res: Dict[str, Any]) -> Optional[str]:
@@ -357,6 +340,7 @@ class ClaudeCodeDelegationNode(Node):
             "instruction": exec_res["instruction"],
             "agent": exec_res["agent"],
             "task_id": exec_res["task_id"],
+            "task_description": exec_res["task_description"],
             "context": exec_res["context"],
             "delegated_at": exec_res["delegated_at"],
             "output": exec_res.get("output"),
@@ -368,16 +352,36 @@ class ClaudeCodeDelegationNode(Node):
             shared["delegation_history"] = []
         shared["delegation_history"].append(shared["delegation"])
         
-        # Print instruction if in print mode
+        # Track printed tasks (for batch mode) - use list for JSON serialization
+        if "printed_tasks" not in shared:
+            shared["printed_tasks"] = []
+        if exec_res["task_id"] not in shared["printed_tasks"]:
+            shared["printed_tasks"].append(exec_res["task_id"])
+        
         mode = exec_res.get("mode", "print")
+        
         if mode == "print":
+            # Legacy behavior: Print ONE delegation and exit
             print("\n" + "=" * 70)
             print("DELEGATION INSTRUCTION")
             print("=" * 70)
             print(exec_res["instruction"])
             print("=" * 70 + "\n")
-            # In print mode, exit after printing so user can execute manually
             return "print_complete"
+        
+        elif mode == "batch":
+            # Batch mode: Print delegation and continue to next task
+            task_num = len(shared["delegation_history"])
+            print(f"\n{'=' * 70}")
+            print(f"📋 DELEGATION {task_num}: {exec_res['task_id']}")
+            print(f"   Agent: {exec_res['agent']}")
+            print(f"   Task: {exec_res['task_description'][:60]}...")
+            print(f"{'=' * 70}")
+            print(exec_res["instruction"])
+            print(f"{'=' * 70}\n")
+            
+            # Return "printed" to continue to next task (not mark as complete)
+            return "printed"
         
         if exec_res.get("error"):
             return "error"
@@ -428,45 +432,26 @@ class SubagentResultNode(Node):
         }
         
         if inputs["success"]:
-            result["summary"] = f"Task {inputs['task_id']} completed successfully. "
+            result["summary"] = f"Task {inputs['task_id']} completed successfully"
             if inputs["files_modified"]:
-                result["summary"] += f"Modified {len(inputs['files_modified'])} files."
+                result["summary"] += f", modified {len(inputs['files_modified'])} files"
         else:
-            result["summary"] = f"Task {inputs['task_id']} failed: {inputs.get('error', 'Unknown error')}"
-            result["error"] = inputs.get("error")
+            result["summary"] = f"Task {inputs['task_id']} failed"
+            if inputs["error"]:
+                result["summary"] += f": {inputs['error']}"
         
         return result
     
     def post(self, shared: Dict[str, Any], prep_res: Dict[str, Any], exec_res: Dict[str, Any]) -> Optional[str]:
-        """Update progress and store result."""
-        # Store task result
+        """Store result and update progress."""
         shared["task_result"] = exec_res
         
-        # Update progress
-        progress = shared.get("progress", {"tasks": [], "completed": [], "failed": []})
-        
-        if exec_res["success"]:
-            if exec_res["task_id"] not in progress.get("completed", []):
-                if "completed" not in progress:
-                    progress["completed"] = []
-                progress["completed"].append(exec_res["task_id"])
-            
-            # Record files modified for learning
-            if exec_res["files_modified"]:
-                if "files_modified_this_session" not in shared:
-                    shared["files_modified_this_session"] = []
-                shared["files_modified_this_session"].extend(exec_res["files_modified"])
-        else:
-            if "failed" not in progress:
-                progress["failed"] = []
-            progress["failed"].append({
-                "task_id": exec_res["task_id"],
-                "error": exec_res.get("error"),
-                "at": exec_res["completed_at"],
-            })
-        
-        shared["progress"] = progress
+        # Add to results history
+        if "results_history" not in shared:
+            shared["results_history"] = []
+        shared["results_history"].append(exec_res)
         
         if exec_res["success"]:
             return "success"
-        return "failed"
+        else:
+            return "failed"

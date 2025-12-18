@@ -254,9 +254,9 @@ Examples:
     impl_parser.add_argument("--project", "-p", required=True, help="Project root path")
     impl_parser.add_argument("--spec", "-s", required=True, help="Specification name")
     impl_parser.add_argument("--session", help="Resume specific session")
-    impl_parser.add_argument("--mode", "-m", default="print",
-                            choices=["print", "file", "cli"],
-                            help="Delegation mode")
+    impl_parser.add_argument("--mode", "-m", default="batch",
+                            choices=["batch", "print", "file", "cli"],
+                            help="Delegation mode: batch (all tasks), print (one task), file, cli")
     impl_parser.add_argument("--no-checkpoint", action="store_true",
                             help="Disable auto-checkpointing")
     impl_parser.add_argument("--no-improve", action="store_true",

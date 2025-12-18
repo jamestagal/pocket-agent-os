@@ -159,8 +159,15 @@ def run_status(args):
     print("-" * 50)
     
     # List sessions
+    # Session files match patterns: impl_*, session_*, bootstrap_*
+    # Exclude utility files like pending_delegations.json
+    SESSION_PREFIXES = ('impl_', 'session_', 'bootstrap_', 'spec_')
+    
     if os.path.exists(sessions_dir):
-        sessions = [f for f in os.listdir(sessions_dir) if f.endswith('.json')]
+        sessions = [
+            f for f in os.listdir(sessions_dir) 
+            if f.endswith('.json') and any(f.startswith(p) for p in SESSION_PREFIXES)
+        ]
         if sessions:
             print(f"\nSessions ({len(sessions)}):")
             for session_file in sorted(sessions)[-5:]:  # Last 5

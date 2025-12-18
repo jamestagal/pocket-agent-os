@@ -9,7 +9,7 @@ set -e  # Exit on error
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-BASE_DIR="$HOME/agent-os"
+BASE_DIR="$HOME/pocket-agent-os"
 PROJECT_DIR="$(pwd)"
 
 # Source common functions
@@ -516,13 +516,13 @@ install_pocketflow_wrapper() {
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
-BASE_INSTALL="$HOME/agent-os"
+BASE_INSTALL="$HOME/pocket-agent-os"
 RUNNER="$BASE_INSTALL/scripts/run-flow.py"
 
 # Check if runner exists
 if [[ ! -f "$RUNNER" ]]; then
     echo "Error: PocketFlow runner not found at $RUNNER"
-    echo "Make sure Agent OS base installation exists at ~/agent-os"
+    echo "Make sure Pocket Agent OS base installation exists at ~/pocket-agent-os"
     exit 1
 fi
 

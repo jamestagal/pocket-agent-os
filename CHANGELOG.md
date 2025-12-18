@@ -234,7 +234,7 @@ While you lose some context efficiency of using subagents, you can token efficie
 
 2.0.x had introduced the concepts of multi-agent and single-agent modes, where multi-agent mode was designed for using Claude Code with subagents.  This naming and configuration design proved suboptimal and inflexible, so 2.1.0 does away with the terms "single-agent mode" and "multi-agent mode".
 
-Now we configure Agent OS using these boolean options in your base ~/agent-os/config.yml:
+Now we configure Agent OS using these boolean options in your base ~/pocket-agent-os/config.yml:
 
 claude_code_commands: true/false
 use_claude_code_subagents: true/false

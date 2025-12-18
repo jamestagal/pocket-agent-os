@@ -20,6 +20,73 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pocketflow import Node
 
 
+def parse_tasks_from_markdown(tasks_content: str) -> List[Dict[str, Any]]:
+    """
+    Parse tasks from tasks.md content.
+    
+    Extracts task items in formats like:
+    - [ ] 1.1 Task description
+    - [x] 1.2 Completed task
+    - [ ] Task without number
+    
+    Returns list of task objects with:
+    - id: Task identifier (e.g., "1.1" or generated)
+    - description: Task text
+    - status: "pending" or "completed"
+    - phase: Extracted from section header if available
+    """
+    import re
+    
+    tasks = []
+    current_phase = "default"
+    current_group = None
+    
+    lines = tasks_content.split('\n')
+    
+    for line in lines:
+        # Track section headers for phase/group context
+        if line.startswith('### '):
+            # Task Group header like "### Task Group 1: Database Layer"
+            header = line[4:].strip()
+            if 'Task Group' in header:
+                current_group = header
+                # Extract phase from header (e.g., "Database Layer")
+                if ':' in header:
+                    current_phase = header.split(':', 1)[1].strip()
+        elif line.startswith('## '):
+            # Section header like "## Database Layer"
+            current_phase = line[3:].strip()
+        
+        # Parse task items
+        # Match patterns like: - [ ] 1.1 Description or - [x] Description
+        task_match = re.match(r'^[-*]\s*\[([ xX])\]\s*(.+)$', line.strip())
+        if task_match:
+            checkbox = task_match.group(1)
+            task_text = task_match.group(2).strip()
+            
+            # Try to extract task ID (e.g., "1.1", "2.3")
+            id_match = re.match(r'^(\d+\.?\d*)\s+(.+)$', task_text)
+            if id_match:
+                task_id = id_match.group(1)
+                description = id_match.group(2)
+            else:
+                # Generate ID from description
+                task_id = task_text[:20].replace(' ', '_').lower()
+                description = task_text
+            
+            task = {
+                "id": task_id,
+                "description": description,
+                "full_text": task_text,
+                "status": "completed" if checkbox.lower() == 'x' else "pending",
+                "phase": current_phase,
+                "group": current_group,
+            }
+            tasks.append(task)
+    
+    return tasks
+
+
 def load_product_files(project_root: str) -> Dict[str, str]:
     """
     Load product context files from agent-os/product/.
@@ -204,6 +271,7 @@ class SessionStartNode(Node):
             "spec_files": {},
             "spec_visuals": [],
             "product_files": {},
+            "parsed_tasks": [],
             "spec_path": inputs["spec_path"],
             "resumed": False,
         }
@@ -256,6 +324,11 @@ class SessionStartNode(Node):
             result["spec_files"] = spec_data["files"]
             result["spec_visuals"] = spec_data["visuals"]
             result["progress"] = spec_data["progress"]
+            
+            # 4b. Parse tasks from tasks.md
+            if "tasks.md" in result["spec_files"]:
+                parsed_tasks = parse_tasks_from_markdown(result["spec_files"]["tasks.md"])
+                result["parsed_tasks"] = parsed_tasks
         
         # 5. Load product context files (mission.md, roadmap.md, tech-stack.md, etc.)
         result["product_files"] = load_product_files(inputs["project_root"])
@@ -312,6 +385,27 @@ class SessionStartNode(Node):
                 "current_task": None,
                 "completed": [],
             }
+        
+        # Merge parsed tasks into progress
+        if exec_res.get("parsed_tasks"):
+            parsed = exec_res["parsed_tasks"]
+            # Get pending tasks only (not already completed in tasks.md)
+            pending_tasks = [t for t in parsed if t["status"] == "pending"]
+            completed_from_md = [t["id"] for t in parsed if t["status"] == "completed"]
+            
+            # Set tasks list from parsed tasks
+            shared["progress"]["tasks"] = pending_tasks
+            
+            # Merge completed tasks (from progress.json and tasks.md)
+            existing_completed = set(shared["progress"].get("completed", []))
+            existing_completed.update(completed_from_md)
+            # Also check completed_tasks field (alternative format)
+            if shared["progress"].get("completed_tasks"):
+                existing_completed.update(shared["progress"]["completed_tasks"])
+            shared["progress"]["completed"] = list(existing_completed)
+            
+            # Log task stats
+            print(f"   Parsed {len(parsed)} tasks: {len(pending_tasks)} pending, {len(completed_from_md)} completed")
         
         # Route based on whether we're resuming
         if exec_res["resumed"]:

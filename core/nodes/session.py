@@ -20,6 +20,50 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pocketflow import Node
 
 
+def load_product_files(project_root: str) -> Dict[str, str]:
+    """
+    Load product context files from agent-os/product/.
+    
+    These files provide broader product context:
+    - mission.md: Product mission, purpose, target users
+    - roadmap.md: Features completed, current state, where new features fit
+    - tech-stack.md: Technologies, frameworks, constraints
+    - Any other .md files in the product folder
+    
+    Returns dict with filename -> content mapping.
+    """
+    product_dir = Path(project_root) / "agent-os" / "product"
+    result = {}
+    
+    if not product_dir.exists():
+        return result
+    
+    # Load all markdown files in product folder
+    for md_file in product_dir.glob("*.md"):
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                result[md_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            result[md_file.name] = f"[Error reading {md_file.name}]"
+    
+    # Also load any yaml/yml files
+    for yaml_file in product_dir.glob("*.yaml"):
+        try:
+            with open(yaml_file, 'r', encoding='utf-8') as f:
+                result[yaml_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            pass
+    
+    for yml_file in product_dir.glob("*.yml"):
+        try:
+            with open(yml_file, 'r', encoding='utf-8') as f:
+                result[yml_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            pass
+    
+    return result
+
+
 def load_spec_files(spec_path: str) -> Dict[str, Any]:
     """
     Load all files from a spec directory.
@@ -159,6 +203,7 @@ class SessionStartNode(Node):
             "progress": None,
             "spec_files": {},
             "spec_visuals": [],
+            "product_files": {},
             "spec_path": inputs["spec_path"],
             "resumed": False,
         }
@@ -212,6 +257,9 @@ class SessionStartNode(Node):
             result["spec_visuals"] = spec_data["visuals"]
             result["progress"] = spec_data["progress"]
         
+        # 5. Load product context files (mission.md, roadmap.md, tech-stack.md, etc.)
+        result["product_files"] = load_product_files(inputs["project_root"])
+        
         return result
     
     def post(self, shared: Dict[str, Any], prep_res: Dict[str, Any], exec_res: Dict[str, Any]) -> Optional[str]:
@@ -235,12 +283,18 @@ class SessionStartNode(Node):
         shared["spec_files"] = exec_res["spec_files"]
         shared["spec_visuals"] = exec_res["spec_visuals"]
         
+        # Store product context files
+        shared["product_files"] = exec_res["product_files"]
+        
         # Log what was loaded
         if exec_res["spec_files"]:
             file_list = list(exec_res["spec_files"].keys())
             print(f"   Loaded spec files: {', '.join(file_list)}")
         if exec_res["spec_visuals"]:
             print(f"   Found {len(exec_res['spec_visuals'])} visual files")
+        if exec_res["product_files"]:
+            product_list = list(exec_res["product_files"].keys())
+            print(f"   Loaded product files: {', '.join(product_list)}")
         
         # Restore previous state if resuming
         if exec_res["previous_state"]:

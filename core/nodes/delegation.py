@@ -66,6 +66,38 @@ def format_spec_context(spec_files: Dict[str, str], spec_visuals: List[str], spe
     return "\n\n---\n\n".join(sections)
 
 
+def format_product_context(product_files: Dict[str, str]) -> str:
+    """
+    Format product files into readable context for delegation.
+    
+    Prioritizes key files: mission.md, roadmap.md, tech-stack.md
+    """
+    if not product_files:
+        return ""
+    
+    sections = []
+    
+    # Priority order for product files
+    priority_files = ["mission.md", "roadmap.md", "tech-stack.md"]
+    
+    # Add priority files first
+    for filename in priority_files:
+        if filename in product_files:
+            content = product_files[filename]
+            sections.append(f"### {filename}\n\n{content}")
+    
+    # Add other product files
+    other_files = [f for f in product_files.keys() if f not in priority_files]
+    for filename in sorted(other_files):
+        content = product_files[filename]
+        if filename.endswith(('.yaml', '.yml')):
+            sections.append(f"### {filename}\n\n```yaml\n{content}\n```")
+        else:
+            sections.append(f"### {filename}\n\n{content}")
+    
+    return "\n\n---\n\n".join(sections)
+
+
 def extract_current_task_context(spec_files: Dict[str, str], task_description: str) -> str:
     """
     Extract the specific task context from tasks.md if available.
@@ -148,6 +180,9 @@ class ClaudeCodeDelegationNode(Node):
         spec_visuals = shared.get("spec_visuals", [])
         spec_path = shared.get("spec_path", "")
         
+        # Get product context files (mission.md, roadmap.md, tech-stack.md)
+        product_files = shared.get("product_files", {})
+        
         # Get relevant expertise
         expertise = shared.get("expertise", {})
         relevant_expertise = {}
@@ -168,6 +203,7 @@ class ClaudeCodeDelegationNode(Node):
             "spec_path": spec_path,
             "spec_files": spec_files,
             "spec_visuals": spec_visuals,
+            "product_files": product_files,
             "relevant_expertise": relevant_expertise,
             "delegation_mode": shared.get("delegation_mode", self.delegation_mode),
             "project_root": shared.get("session", {}).get("project_root", os.getcwd()),
@@ -210,6 +246,12 @@ class ClaudeCodeDelegationNode(Node):
             if task_context:
                 instruction_parts.append(task_context)
         
+        # Product context (mission, roadmap, tech-stack)
+        product_files = inputs.get("product_files", {})
+        if product_files:
+            product_context = format_product_context(product_files)
+            instruction_parts.append(f"\n## Product Context\n\nThe following product documentation provides broader context:\n\n{product_context}")
+        
         # Expertise hints
         if inputs["relevant_expertise"]:
             expertise_notes = []
@@ -237,6 +279,7 @@ class ClaudeCodeDelegationNode(Node):
                 "spec": inputs["spec_path"],
                 "spec_files_count": len(spec_files),
                 "visuals_count": len(spec_visuals),
+                "product_files_count": len(product_files),
                 "expertise_domains": list(inputs["relevant_expertise"].keys()),
             },
             "delegated_at": datetime.now().isoformat(),

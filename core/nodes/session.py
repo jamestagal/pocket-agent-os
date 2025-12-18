@@ -12,11 +12,93 @@ import json
 import time
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+from pathlib import Path
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pocketflow import Node
+
+
+def load_spec_files(spec_path: str) -> Dict[str, Any]:
+    """
+    Load all files from a spec directory.
+    
+    Reads:
+    - spec.md, tasks.md, requirements.md (main files)
+    - Any other .md files in spec root
+    - planning/*.md (planning documents)
+    - planning/visuals/* (image paths only, not content)
+    - progress.json
+    
+    Returns dict with:
+    - files: Dict[filename, content] for text files
+    - visuals: List of visual file paths
+    - progress: Dict from progress.json
+    """
+    result = {
+        "files": {},
+        "visuals": [],
+        "progress": None,
+        "spec_path": spec_path,
+    }
+    
+    if not os.path.exists(spec_path):
+        return result
+    
+    spec_dir = Path(spec_path)
+    
+    # Load all markdown files in spec root
+    for md_file in spec_dir.glob("*.md"):
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                result["files"][md_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            result["files"][md_file.name] = f"[Error reading {md_file.name}]"
+    
+    # Load progress.json
+    progress_file = spec_dir / "progress.json"
+    if progress_file.exists():
+        try:
+            with open(progress_file, 'r') as f:
+                result["progress"] = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    
+    # Load planning folder if exists
+    planning_dir = spec_dir / "planning"
+    if planning_dir.exists() and planning_dir.is_dir():
+        # Load planning markdown files
+        for md_file in planning_dir.glob("*.md"):
+            try:
+                with open(md_file, 'r', encoding='utf-8') as f:
+                    result["files"][f"planning/{md_file.name}"] = f.read()
+            except (IOError, UnicodeDecodeError):
+                result["files"][f"planning/{md_file.name}"] = f"[Error reading {md_file.name}]"
+        
+        # Collect visual file paths (don't load binary content)
+        visuals_dir = planning_dir / "visuals"
+        if visuals_dir.exists() and visuals_dir.is_dir():
+            for visual_file in visuals_dir.iterdir():
+                if visual_file.is_file():
+                    result["visuals"].append(str(visual_file.relative_to(spec_dir)))
+    
+    # Load any yaml/yml config files
+    for yaml_file in spec_dir.glob("*.yaml"):
+        try:
+            with open(yaml_file, 'r', encoding='utf-8') as f:
+                result["files"][yaml_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            pass
+    
+    for yml_file in spec_dir.glob("*.yml"):
+        try:
+            with open(yml_file, 'r', encoding='utf-8') as f:
+                result["files"][yml_file.name] = f.read()
+        except (IOError, UnicodeDecodeError):
+            pass
+    
+    return result
 
 
 class SessionStartNode(Node):
@@ -26,7 +108,7 @@ class SessionStartNode(Node):
     Performs:
     1. Orient (pwd, git status, recent commits)
     2. Load previous session state if exists
-    3. Load progress.json from active spec
+    3. Load ALL spec files (spec.md, tasks.md, requirements.md, planning/*, etc.)
     4. Set up session context in shared store
     
     Shared Store Inputs:
@@ -38,6 +120,8 @@ class SessionStartNode(Node):
     - session: Dict with id, started_at, resumed
     - orientation: Dict with cwd, git_status, recent_commits
     - progress: Dict loaded from progress.json (if exists)
+    - spec_files: Dict with all spec file contents
+    - spec_visuals: List of visual file paths
     """
     
     def __init__(self, sessions_dir: str = "agent-os/sessions", **kwargs):
@@ -50,9 +134,15 @@ class SessionStartNode(Node):
         spec_name = shared.get("spec_name")
         session_id = shared.get("session_id") or f"session_{int(time.time())}"
         
+        # Build spec path
+        spec_path = None
+        if spec_name:
+            spec_path = os.path.join(project_root, "agent-os/specs", spec_name)
+        
         return {
             "project_root": project_root,
             "spec_name": spec_name,
+            "spec_path": spec_path,
             "session_id": session_id,
             "sessions_path": os.path.join(project_root, self.sessions_dir),
         }
@@ -67,6 +157,9 @@ class SessionStartNode(Node):
             "orientation": {},
             "previous_state": None,
             "progress": None,
+            "spec_files": {},
+            "spec_visuals": [],
+            "spec_path": inputs["spec_path"],
             "resumed": False,
         }
         
@@ -112,20 +205,12 @@ class SessionStartNode(Node):
             except (json.JSONDecodeError, IOError):
                 pass
         
-        # 4. Load progress.json from spec
-        if inputs["spec_name"]:
-            progress_path = os.path.join(
-                project_root,
-                "agent-os/specs",
-                inputs["spec_name"],
-                "progress.json"
-            )
-            if os.path.exists(progress_path):
-                try:
-                    with open(progress_path, 'r') as f:
-                        result["progress"] = json.load(f)
-                except (json.JSONDecodeError, IOError):
-                    pass
+        # 4. Load ALL spec files (not just progress.json)
+        if inputs["spec_path"]:
+            spec_data = load_spec_files(inputs["spec_path"])
+            result["spec_files"] = spec_data["files"]
+            result["spec_visuals"] = spec_data["visuals"]
+            result["progress"] = spec_data["progress"]
         
         return result
     
@@ -142,6 +227,20 @@ class SessionStartNode(Node):
         
         # Orientation results
         shared["orientation"] = exec_res["orientation"]
+        
+        # Store spec path for delegation
+        shared["spec_path"] = exec_res["spec_path"]
+        
+        # Store ALL spec files for delegation context
+        shared["spec_files"] = exec_res["spec_files"]
+        shared["spec_visuals"] = exec_res["spec_visuals"]
+        
+        # Log what was loaded
+        if exec_res["spec_files"]:
+            file_list = list(exec_res["spec_files"].keys())
+            print(f"   Loaded spec files: {', '.join(file_list)}")
+        if exec_res["spec_visuals"]:
+            print(f"   Found {len(exec_res['spec_visuals'])} visual files")
         
         # Restore previous state if resuming
         if exec_res["previous_state"]:

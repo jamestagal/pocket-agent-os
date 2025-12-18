@@ -477,6 +477,94 @@ install_routing_template() {
     fi
 }
 
+# Install PocketFlow CLI wrapper script (PocketFlow v3.0)
+# Creates a convenience script to run Python flows from within the project
+install_pocketflow_wrapper() {
+    # Only install if session management is enabled (indicates PocketFlow features are wanted)
+    if [[ "$EFFECTIVE_SESSION_MANAGEMENT" != "true" ]]; then
+        return
+    fi
+
+    # Check if Python framework exists in base installation
+    if [[ ! -f "$BASE_DIR/scripts/run-flow.py" ]]; then
+        print_verbose "PocketFlow CLI not found in base installation, skipping wrapper"
+        return
+    fi
+
+    local wrapper_script="$PROJECT_DIR/agent-os/run-flow"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        INSTALLED_FILES+=("$wrapper_script")
+        return
+    fi
+
+    # Create the wrapper script
+    cat > "$wrapper_script" << 'WRAPPER_EOF'
+#!/bin/bash
+# Agent OS PocketFlow CLI Wrapper
+# Runs Python flows from the base Agent OS installation
+#
+# Usage:
+#   ./agent-os/run-flow status
+#   ./agent-os/run-flow implement --spec my-feature
+#   ./agent-os/run-flow bootstrap
+#
+# This wrapper automatically:
+#   - Detects the project root (where this script lives)
+#   - Calls the base installation's run-flow.py
+#   - Passes --project automatically
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+BASE_INSTALL="$HOME/agent-os"
+RUNNER="$BASE_INSTALL/scripts/run-flow.py"
+
+# Check if runner exists
+if [[ ! -f "$RUNNER" ]]; then
+    echo "Error: PocketFlow runner not found at $RUNNER"
+    echo "Make sure Agent OS base installation exists at ~/agent-os"
+    exit 1
+fi
+
+# Check if Python 3 is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 is required but not found"
+    exit 1
+fi
+
+# If no arguments, show help
+if [[ $# -eq 0 ]]; then
+    python3 "$RUNNER" --help
+    exit 0
+fi
+
+# Get the command (first argument)
+COMMAND="$1"
+shift
+
+# For commands that need --project, inject it automatically if not provided
+case "$COMMAND" in
+    status|bootstrap|implement|spec)
+        # Check if --project or -p is already in args
+        if [[ ! " $* " =~ " --project " ]] && [[ ! " $* " =~ " -p " ]]; then
+            python3 "$RUNNER" "$COMMAND" --project "$PROJECT_ROOT" "$@"
+        else
+            python3 "$RUNNER" "$COMMAND" "$@"
+        fi
+        ;;
+    *)
+        # Pass through as-is
+        python3 "$RUNNER" "$COMMAND" "$@"
+        ;;
+esac
+WRAPPER_EOF
+
+    # Make it executable
+    chmod +x "$wrapper_script"
+
+    echo "✓ Created PocketFlow CLI wrapper (run-flow)"
+}
+
 # Perform fresh installation
 perform_installation() {
     # Show dry run warning at the top if applicable
@@ -506,6 +594,7 @@ perform_installation() {
         install_expertise_templates
         install_sessions_directory
         install_routing_template
+        install_pocketflow_wrapper
 
         # Install Claude Code files if enabled
         if [[ "$EFFECTIVE_CLAUDE_CODE_COMMANDS" == "true" ]]; then
@@ -543,6 +632,7 @@ perform_installation() {
         install_expertise_templates
         install_sessions_directory
         install_routing_template
+        install_pocketflow_wrapper
         echo ""
 
         # Install Claude Code files if enabled

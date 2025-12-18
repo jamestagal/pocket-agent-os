@@ -1,4 +1,4 @@
-version: 2.1.1
+version: 3.0.0
 base_install: true
 
 
@@ -54,3 +54,34 @@ standards_as_claude_code_skills: false
 # ================================================
 
 profile: default
+
+
+# ================================================
+# POCKETFLOW ENHANCEMENTS (v3.0)
+# Enhanced coordination features for long-running agent workflows
+# ================================================
+
+# Enable session management protocols
+# Adds session start/end workflows to agents for cross-session continuity
+# Creates agent-os/sessions/ directory in projects
+session_management: true
+
+# Enable domain expertise tracking
+# Creates agent-os/expertise/ directory with domain knowledge files
+# Agents can read/update expertise for faster codebase navigation
+expertise_tracking: true
+
+# Enable progress persistence
+# Creates progress.json in each spec folder for task state tracking
+# Prevents "amnesia" between sessions
+progress_tracking: true
+
+# Enable smart agent routing
+# Routes tasks to specialist agents based on task domain
+# Falls back to generalist 'implementer' if no specialist defined
+smart_routing: true
+
+# Enable self-improvement workflow
+# After task completion, agents can update expertise files
+# Captures patterns and learnings automatically
+self_improvement: true

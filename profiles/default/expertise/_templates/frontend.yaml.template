@@ -1,0 +1,87 @@
+# Frontend Expertise
+# Domain: UI components, pages, client-side logic, styling
+# Last Updated: {{timestamp}}
+
+overview:
+  framework: "{{frontend_framework}}"
+  status: "active"
+  last_verified: "{{timestamp}}"
+  description: |
+    This file captures knowledge about the frontend architecture,
+    component patterns, and UI conventions used in this project.
+
+architecture:
+  # Entry points - where rendering begins
+  entry_points:
+    - path: "src/routes/+layout.svelte"
+      purpose: "Root layout, global providers"
+    - path: "src/routes/+page.svelte"
+      purpose: "Home page"
+  
+  # Key directories
+  directories:
+    components: "src/lib/components/"
+    pages: "src/routes/"
+    stores: "src/lib/stores/"
+    utils: "src/lib/utils/"
+    styles: "src/lib/styles/"
+
+  # Component organization pattern
+  component_structure: |
+    Components follow atomic design:
+    - atoms/ (buttons, inputs, icons)
+    - molecules/ (form fields, cards)
+    - organisms/ (headers, sidebars)
+    - templates/ (page layouts)
+
+data_flow:
+  # How data moves through the frontend
+  state_management:
+    tool: "Svelte stores"  # or Redux, Zustand, etc.
+    global_stores:
+      - name: "user"
+        path: "src/lib/stores/user.ts"
+        purpose: "Current user session"
+    
+  api_communication:
+    pattern: "fetch with +server endpoints"
+    client_location: "src/lib/api/"
+    
+  props_pattern: |
+    Components receive data via props, not direct store access.
+    Parent components are responsible for data fetching.
+
+patterns:
+  # Established conventions to follow
+  naming:
+    components: "PascalCase (e.g., UserCard.svelte)"
+    files: "kebab-case (e.g., user-card.ts)"
+    css_classes: "BEM or Tailwind utilities"
+    
+  styling:
+    approach: "Tailwind CSS"
+    custom_styles: "src/app.css"
+    theme_config: "tailwind.config.js"
+    
+  error_handling:
+    pattern: "Error boundaries + toast notifications"
+    error_component: "src/lib/components/ErrorBoundary.svelte"
+    
+  forms:
+    validation: "Zod schemas"
+    submission: "Progressive enhancement with use:enhance"
+
+key_files:
+  # Critical files that are frequently referenced
+  - path: "src/app.d.ts"
+    purpose: "TypeScript declarations for SvelteKit"
+  - path: "src/hooks.server.ts"
+    purpose: "Server hooks, auth middleware"
+  - path: "svelte.config.js"
+    purpose: "SvelteKit configuration"
+
+recent_changes:
+  # Track recent significant changes
+  # - date: "2025-01-15"
+  #   description: "Added dark mode support"
+  #   task: "2.3"

@@ -1,0 +1,117 @@
+# API/Backend Expertise
+# Domain: Server endpoints, business logic, integrations
+# Last Updated: {{timestamp}}
+
+overview:
+  framework: "{{backend_framework}}"
+  status: "active"
+  last_verified: "{{timestamp}}"
+  description: |
+    This file captures knowledge about the backend architecture,
+    API patterns, and server-side conventions used in this project.
+
+architecture:
+  # API structure
+  api_style: "REST"  # or GraphQL, tRPC, etc.
+  
+  entry_points:
+    - path: "src/routes/api/"
+      purpose: "API route handlers"
+    - path: "src/lib/server/"
+      purpose: "Server-only utilities"
+  
+  directories:
+    routes: "src/routes/api/"
+    services: "src/lib/server/services/"
+    middleware: "src/lib/server/middleware/"
+    utils: "src/lib/server/utils/"
+    types: "src/lib/types/"
+
+  # Route organization
+  route_structure: |
+    API routes follow RESTful conventions:
+    - GET /api/resources - List resources
+    - POST /api/resources - Create resource
+    - GET /api/resources/[id] - Get single resource
+    - PUT /api/resources/[id] - Update resource
+    - DELETE /api/resources/[id] - Delete resource
+
+data_flow:
+  # Request lifecycle
+  request_flow:
+    - step: "Request received"
+      location: "+server.ts route handler"
+    - step: "Authentication check"
+      location: "hooks.server.ts or middleware"
+    - step: "Validation"
+      location: "Zod schema validation"
+    - step: "Business logic"
+      location: "Service layer"
+    - step: "Database operation"
+      location: "Repository/ORM calls"
+    - step: "Response"
+      location: "JSON response from handler"
+
+  # Authentication flow
+  auth:
+    strategy: "Session-based"  # or JWT, OAuth, etc.
+    session_location: "cookies"
+    auth_check: "src/hooks.server.ts"
+
+patterns:
+  # Established conventions
+  error_handling:
+    pattern: "Try-catch with typed errors"
+    error_types: "src/lib/server/errors.ts"
+    response_format: |
+      {
+        "error": true,
+        "message": "Human readable message",
+        "code": "ERROR_CODE"
+      }
+  
+  validation:
+    library: "Zod"
+    schema_location: "src/lib/schemas/"
+    pattern: "Validate at route handler entry"
+    
+  response_format:
+    success: |
+      {
+        "data": { ... },
+        "meta": { "timestamp": "..." }
+      }
+    
+  naming:
+    routes: "kebab-case (e.g., /api/user-profiles)"
+    handlers: "camelCase functions"
+    services: "PascalCase classes or modules"
+
+integrations:
+  # External services and APIs
+  # - name: "Stripe"
+  #   purpose: "Payment processing"
+  #   client_location: "src/lib/server/stripe.ts"
+  #   env_vars: ["STRIPE_SECRET_KEY"]
+
+key_files:
+  - path: "src/hooks.server.ts"
+    purpose: "Request hooks, auth middleware"
+  - path: "src/lib/server/auth.ts"
+    purpose: "Authentication utilities"
+  - path: "src/lib/schemas/index.ts"
+    purpose: "Validation schemas"
+
+environment:
+  # Required environment variables
+  required_vars:
+    - name: "DATABASE_URL"
+      purpose: "Database connection string"
+    # - name: "API_SECRET"
+    #   purpose: "API signing key"
+
+recent_changes:
+  # Track recent significant changes
+  # - date: "2025-01-15"
+  #   description: "Added rate limiting middleware"
+  #   task: "3.2"

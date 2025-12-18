@@ -3,6 +3,184 @@
 Get notified of major releases by subscribing here:
 https://buildermethods.com/agent-os
 
+## [3.0.0] - 2025-12-18
+
+Version 3.0 is a major release introducing **PocketFlow Enhancements** - a suite of features designed to solve the "agent amnesia" problem where AI agents lose context across sessions.
+
+### TL;DR
+
+- **Session Management** - Agents now follow start/end protocols that preserve context across sessions
+- **Domain Expertise** - Project-level knowledge files help agents navigate codebases instantly
+- **Progress Tracking** - Structured `progress.json` files prevent "where was I?" confusion
+- **Smart Routing** - Tasks can be automatically routed to specialist agents based on domain
+- **Self-Improvement** - Agents automatically update expertise files after completing work
+- **New Commands**: `/bootstrap-expertise` and `/show-progress`
+- **New Agents**: `meta-expert`, `self-improver`, `agent-router`
+
+### The Problem We're Solving
+
+AI coding agents suffer from "amnesia" - each new session starts with zero memory of previous work. This leads to:
+- Repeated exploration of the same codebase
+- Lost understanding of patterns and conventions
+- Confusion about what's been done and what's next
+- Inconsistent code due to forgotten context
+
+Version 3.0 addresses these issues with three complementary systems.
+
+### Session Management
+
+New workflow protocols injected into agents:
+
+**Session Start Protocol:**
+1. Orient (pwd, git status, recent commits)
+2. Load progress state from `progress.json`
+3. Load relevant domain expertise
+4. Verify system state (run tests if available)
+5. Select ONE task to work on
+6. Announce intent
+
+**Session End Protocol:**
+1. Clean up code (remove debug statements)
+2. Update `tasks.md` checkboxes
+3. Update `progress.json` with summary
+4. Git commit with descriptive message
+5. Optionally trigger self-improvement
+6. Run final verification
+
+Enable/disable with `session_management: true/false` in config.yml.
+
+### Domain Expertise System
+
+New `agent-os/expertise/` directory in projects containing:
+- `_index.yaml` - Maps domains to expertise files and specialists
+- `frontend.yaml` - UI, components, client-side patterns
+- `api.yaml` - Server endpoints, business logic
+- `database.yaml` - Data models, queries, migrations
+- Custom domain files as needed
+
+Expertise files capture:
+- Architecture (entry points, directories)
+- Data flow (how information moves)
+- Patterns (established conventions)
+- Key files (frequently referenced)
+- Recent changes (audit trail)
+
+**Key insight:** Expertise lives at PROJECT level, not spec level, because domain knowledge accumulates across multiple features.
+
+Enable/disable with `expertise_tracking: true/false` in config.yml.
+
+### Progress Tracking
+
+New `progress.json` file in each spec folder:
+
+```json
+{
+  "spec_name": "user-auth",
+  "status": "in_progress",
+  "current_task_group": 2,
+  "last_completed_task": "1.5",
+  "last_session_summary": "Completed login form. Next: validation.",
+  "blocking_issues": [],
+  "next_task": "2.1 - Add form validation"
+}
+```
+
+This prevents "premature completion" where agents declare victory too early.
+
+Enable/disable with `progress_tracking: true/false` in config.yml.
+
+### Smart Agent Routing
+
+New routing system that can automatically delegate tasks to specialist agents:
+
+- **Domain detection** - Analyzes task to determine frontend/backend/database/etc.
+- **Specialist mapping** - Routes to appropriate specialist agent
+- **Fallback** - Uses generalist `implementer` if no specialist configured
+- **Override support** - Inline `[use:agent-name]` or config-based overrides
+
+Optional `agent-os/routing.yaml` for customization:
+```yaml
+specialists:
+  frontend: sveltekit-specialist
+  backend: implementer
+  database: prisma-specialist
+  default: implementer
+```
+
+Enable/disable with `smart_routing: true/false` in config.yml.
+
+### Self-Improvement
+
+After completing work, agents can automatically update expertise files:
+- Capture new patterns discovered
+- Update file paths that changed
+- Document new integration points
+- Add to recent changes audit trail
+
+Enable/disable with `self_improvement: true/false` in config.yml.
+
+### New Commands
+
+**`/bootstrap-expertise`** - Initialize or rebuild expertise files:
+- Analyzes codebase structure
+- Creates `_index.yaml` and domain files
+- Validates all paths exist
+- Best run after `/plan-product` for new projects
+
+**`/show-progress`** - Display current spec progress:
+- Shows completed/remaining tasks
+- Displays last session summary
+- Highlights blocking issues
+- Suggests next action
+
+### New Agents
+
+**`meta-expert`** - Bootstraps expertise by analyzing codebase and product context
+
+**`self-improver`** - Updates expertise files after implementation work
+
+**`agent-router`** - Analyzes tasks and routes them to appropriate specialist agents
+
+### New Workflows
+
+- `coordination/session-start.md` - Start-of-session protocol
+- `coordination/session-end.md` - End-of-session protocol
+- `coordination/progress-checkpoint.md` - Mid-session checkpointing
+- `expertise/load-expertise.md` - Loading domain expertise
+- `expertise/self-improve.md` - Updating expertise after work
+
+### Project Installation Changes
+
+When running `project-install.sh`, new directories are created:
+- `agent-os/expertise/` - Domain expertise files
+- `agent-os/sessions/` - Session state persistence
+- `agent-os/routing.yaml.example` - Routing configuration template
+
+### Configuration
+
+New config.yml options (all default to `true`):
+
+```yaml
+session_management: true    # Enable session protocols
+expertise_tracking: true    # Enable domain expertise
+progress_tracking: true     # Enable progress.json
+smart_routing: true         # Enable agent routing
+self_improvement: true      # Enable auto-expertise updates
+```
+
+### Backwards Compatibility
+
+- All new features are additive and can be disabled
+- Existing projects work unchanged if features are disabled
+- No breaking changes to existing commands or workflows
+
+### Credits
+
+This release was inspired by:
+- [Anthropic's Long-Running Agent Harness patterns](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+- Agent Expert patterns for domain knowledge management
+- PocketFlow framework concepts for workflow coordination
+
 ## [2.1.1] - 2025-10-29
 
 - Replaced references to 'spec-researcher' (depreciated agent name) with 'spec-shaper'.

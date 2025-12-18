@@ -518,6 +518,21 @@ process_conditionals() {
                 "compiled_single_command")
                     [[ "$compiled_single_command" == "true" ]] && condition_met=true
                     ;;
+                "session_management")
+                    [[ "${EFFECTIVE_SESSION_MANAGEMENT:-true}" == "true" ]] && condition_met=true
+                    ;;
+                "expertise_tracking")
+                    [[ "${EFFECTIVE_EXPERTISE_TRACKING:-true}" == "true" ]] && condition_met=true
+                    ;;
+                "progress_tracking")
+                    [[ "${EFFECTIVE_PROGRESS_TRACKING:-true}" == "true" ]] && condition_met=true
+                    ;;
+                "smart_routing")
+                    [[ "${EFFECTIVE_SMART_ROUTING:-true}" == "true" ]] && condition_met=true
+                    ;;
+                "self_improvement")
+                    [[ "${EFFECTIVE_SELF_IMPROVEMENT:-true}" == "true" ]] && condition_met=true
+                    ;;
                 *)
                     print_warning "Unknown conditional flag: $flag_name"
                     ;;
@@ -552,6 +567,21 @@ process_conditionals() {
                     ;;
                 "compiled_single_command")
                     [[ "$compiled_single_command" != "true" ]] && condition_met=true
+                    ;;
+                "session_management")
+                    [[ "${EFFECTIVE_SESSION_MANAGEMENT:-true}" != "true" ]] && condition_met=true
+                    ;;
+                "expertise_tracking")
+                    [[ "${EFFECTIVE_EXPERTISE_TRACKING:-true}" != "true" ]] && condition_met=true
+                    ;;
+                "progress_tracking")
+                    [[ "${EFFECTIVE_PROGRESS_TRACKING:-true}" != "true" ]] && condition_met=true
+                    ;;
+                "smart_routing")
+                    [[ "${EFFECTIVE_SMART_ROUTING:-true}" != "true" ]] && condition_met=true
+                    ;;
+                "self_improvement")
+                    [[ "${EFFECTIVE_SELF_IMPROVEMENT:-true}" != "true" ]] && condition_met=true
                     ;;
                 *)
                     print_warning "Unknown conditional flag: $flag_name"
@@ -1180,12 +1210,19 @@ parse_bool_flag() {
 
 # Load base installation configuration
 load_base_config() {
-    BASE_VERSION=$(get_yaml_value "$BASE_DIR/config.yml" "version" "2.1.0")
+    BASE_VERSION=$(get_yaml_value "$BASE_DIR/config.yml" "version" "3.0.0")
     BASE_PROFILE=$(get_yaml_value "$BASE_DIR/config.yml" "profile" "default")
     BASE_CLAUDE_CODE_COMMANDS=$(get_yaml_value "$BASE_DIR/config.yml" "claude_code_commands" "true")
     BASE_USE_CLAUDE_CODE_SUBAGENTS=$(get_yaml_value "$BASE_DIR/config.yml" "use_claude_code_subagents" "true")
     BASE_AGENT_OS_COMMANDS=$(get_yaml_value "$BASE_DIR/config.yml" "agent_os_commands" "false")
     BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS=$(get_yaml_value "$BASE_DIR/config.yml" "standards_as_claude_code_skills" "true")
+
+    # PocketFlow enhancement settings (v3.0)
+    BASE_SESSION_MANAGEMENT=$(get_yaml_value "$BASE_DIR/config.yml" "session_management" "true")
+    BASE_EXPERTISE_TRACKING=$(get_yaml_value "$BASE_DIR/config.yml" "expertise_tracking" "true")
+    BASE_PROGRESS_TRACKING=$(get_yaml_value "$BASE_DIR/config.yml" "progress_tracking" "true")
+    BASE_SMART_ROUTING=$(get_yaml_value "$BASE_DIR/config.yml" "smart_routing" "true")
+    BASE_SELF_IMPROVEMENT=$(get_yaml_value "$BASE_DIR/config.yml" "self_improvement" "true")
 
     # Check for old config flags to set variables for validation
     MULTI_AGENT_MODE=$(get_yaml_value "$BASE_DIR/config.yml" "multi_agent_mode" "")
@@ -1270,7 +1307,17 @@ profile: $profile
 claude_code_commands: $claude_code_commands
 use_claude_code_subagents: $use_claude_code_subagents
 agent_os_commands: $agent_os_commands
-standards_as_claude_code_skills: $standards_as_claude_code_skills"
+standards_as_claude_code_skills: $standards_as_claude_code_skills
+
+# ================================================
+# PocketFlow Enhancement Settings (v3.0)
+# These enable advanced coordination features
+# ================================================
+session_management: ${EFFECTIVE_SESSION_MANAGEMENT:-true}
+expertise_tracking: ${EFFECTIVE_EXPERTISE_TRACKING:-true}
+progress_tracking: ${EFFECTIVE_PROGRESS_TRACKING:-true}
+smart_routing: ${EFFECTIVE_SMART_ROUTING:-true}
+self_improvement: ${EFFECTIVE_SELF_IMPROVEMENT:-true}"
 
     local result=$(write_file "$config_content" "$dest")
     if [[ "$DRY_RUN" == "true" ]]; then

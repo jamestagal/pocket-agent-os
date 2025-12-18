@@ -155,6 +155,13 @@ load_configuration() {
     EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS="${STANDARDS_AS_CLAUDE_CODE_SKILLS:-$BASE_STANDARDS_AS_CLAUDE_CODE_SKILLS}"
     EFFECTIVE_VERSION="$BASE_VERSION"
 
+    # PocketFlow enhancement settings (v3.0)
+    EFFECTIVE_SESSION_MANAGEMENT="${SESSION_MANAGEMENT:-$BASE_SESSION_MANAGEMENT}"
+    EFFECTIVE_EXPERTISE_TRACKING="${EXPERTISE_TRACKING:-$BASE_EXPERTISE_TRACKING}"
+    EFFECTIVE_PROGRESS_TRACKING="${PROGRESS_TRACKING:-$BASE_PROGRESS_TRACKING}"
+    EFFECTIVE_SMART_ROUTING="${SMART_ROUTING:-$BASE_SMART_ROUTING}"
+    EFFECTIVE_SELF_IMPROVEMENT="${SELF_IMPROVEMENT:-$BASE_SELF_IMPROVEMENT}"
+
     # Validate configuration using common function (may override EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS if dependency not met)
     validate_config "$EFFECTIVE_CLAUDE_CODE_COMMANDS" "$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS" "$EFFECTIVE_AGENT_OS_COMMANDS" "$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS" "$EFFECTIVE_PROFILE"
 
@@ -164,6 +171,9 @@ load_configuration() {
     print_verbose "  Use Claude Code subagents: $EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS"
     print_verbose "  Agent OS commands: $EFFECTIVE_AGENT_OS_COMMANDS"
     print_verbose "  Standards as Claude Code Skills: $EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS"
+    print_verbose "  Session Management: $EFFECTIVE_SESSION_MANAGEMENT"
+    print_verbose "  Expertise Tracking: $EFFECTIVE_EXPERTISE_TRACKING"
+    print_verbose "  Smart Routing: $EFFECTIVE_SMART_ROUTING"
 }
 
 # -----------------------------------------------------------------------------
@@ -386,6 +396,87 @@ create_agent_os_folder() {
     fi
 }
 
+# Install expertise directory and templates (PocketFlow v3.0)
+install_expertise_templates() {
+    if [[ "$EFFECTIVE_EXPERTISE_TRACKING" != "true" ]]; then
+        return
+    fi
+
+    if [[ "$DRY_RUN" != "true" ]]; then
+        print_status "Installing expertise templates..."
+    fi
+
+    local expertise_dir="$PROJECT_DIR/agent-os/expertise"
+    ensure_dir "$expertise_dir"
+
+    # Copy index template
+    local index_template=$(get_profile_file "$EFFECTIVE_PROFILE" "expertise/_index.yaml.template" "$BASE_DIR")
+    if [[ -f "$index_template" ]]; then
+        local dest="$expertise_dir/_index.yaml"
+        local installed_file=$(copy_file "$index_template" "$dest")
+        if [[ "$DRY_RUN" == "true" && -n "$installed_file" ]]; then
+            INSTALLED_FILES+=("$installed_file")
+        fi
+    fi
+
+    # Copy expertise templates to _templates subfolder
+    local templates_dir="$expertise_dir/_templates"
+    ensure_dir "$templates_dir"
+
+    while read file; do
+        if [[ "$file" == expertise/_templates/*.yaml.template ]]; then
+            local source=$(get_profile_file "$EFFECTIVE_PROFILE" "$file" "$BASE_DIR")
+            if [[ -f "$source" ]]; then
+                local filename=$(basename "$file")
+                local dest="$templates_dir/$filename"
+                local installed_file=$(copy_file "$source" "$dest")
+                if [[ "$DRY_RUN" == "true" && -n "$installed_file" ]]; then
+                    INSTALLED_FILES+=("$installed_file")
+                fi
+            fi
+        fi
+    done < <(get_profile_files "$EFFECTIVE_PROFILE" "$BASE_DIR" "expertise")
+
+    if [[ "$DRY_RUN" != "true" ]]; then
+        echo "✓ Created expertise directory with templates"
+    fi
+}
+
+# Install sessions directory (PocketFlow v3.0)
+install_sessions_directory() {
+    if [[ "$EFFECTIVE_SESSION_MANAGEMENT" != "true" ]]; then
+        return
+    fi
+
+    local sessions_dir="$PROJECT_DIR/agent-os/sessions"
+    ensure_dir "$sessions_dir"
+
+    # Create .gitkeep to ensure directory is tracked
+    if [[ "$DRY_RUN" != "true" ]]; then
+        touch "$sessions_dir/.gitkeep"
+        echo "✓ Created sessions directory"
+    fi
+}
+
+# Install routing configuration template (PocketFlow v3.0)
+install_routing_template() {
+    if [[ "$EFFECTIVE_SMART_ROUTING" != "true" ]]; then
+        return
+    fi
+
+    local routing_template=$(get_profile_file "$EFFECTIVE_PROFILE" "routing/routing.yaml.template" "$BASE_DIR")
+    if [[ -f "$routing_template" ]]; then
+        local dest="$PROJECT_DIR/agent-os/routing.yaml.example"
+        local installed_file=$(copy_file "$routing_template" "$dest")
+        if [[ "$DRY_RUN" == "true" && -n "$installed_file" ]]; then
+            INSTALLED_FILES+=("$installed_file")
+        fi
+        if [[ "$DRY_RUN" != "true" ]]; then
+            echo "✓ Created routing configuration template (routing.yaml.example)"
+        fi
+    fi
+}
+
 # Perform fresh installation
 perform_installation() {
     # Show dry run warning at the top if applicable
@@ -402,6 +493,9 @@ perform_installation() {
     echo -e "  Use Claude Code subagents: ${YELLOW}$EFFECTIVE_USE_CLAUDE_CODE_SUBAGENTS${NC}"
     echo -e "  Standards as Claude Code Skills: ${YELLOW}$EFFECTIVE_STANDARDS_AS_CLAUDE_CODE_SKILLS${NC}"
     echo -e "  Agent OS commands: ${YELLOW}$EFFECTIVE_AGENT_OS_COMMANDS${NC}"
+    echo -e "  Session Management: ${YELLOW}$EFFECTIVE_SESSION_MANAGEMENT${NC}"
+    echo -e "  Expertise Tracking: ${YELLOW}$EFFECTIVE_EXPERTISE_TRACKING${NC}"
+    echo -e "  Smart Routing: ${YELLOW}$EFFECTIVE_SMART_ROUTING${NC}"
     echo ""
 
     # In dry run mode, just collect files silently
@@ -409,6 +503,9 @@ perform_installation() {
         # Collect files without output
         create_agent_os_folder
         install_standards
+        install_expertise_templates
+        install_sessions_directory
+        install_routing_template
 
         # Install Claude Code files if enabled
         if [[ "$EFFECTIVE_CLAUDE_CODE_COMMANDS" == "true" ]]; then
@@ -440,6 +537,12 @@ perform_installation() {
         echo ""
 
         install_standards
+        echo ""
+
+        # Install PocketFlow enhancement directories (v3.0)
+        install_expertise_templates
+        install_sessions_directory
+        install_routing_template
         echo ""
 
         # Install Claude Code files if enabled

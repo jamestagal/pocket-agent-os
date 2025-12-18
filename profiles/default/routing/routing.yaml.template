@@ -1,0 +1,152 @@
+# Agent Routing Configuration
+# Defines how tasks are routed to specialist agents
+#
+# This file is OPTIONAL. If not present, all tasks route to 'implementer'.
+# Create this file when you want to leverage specialist agents.
+
+# ============================================================================
+# SPECIALIST MAPPINGS
+# Map domains to specialist agents. Tasks detected as belonging to a domain
+# will be routed to the corresponding specialist.
+# ============================================================================
+
+specialists:
+  # Frontend tasks (UI, components, pages, client-side logic)
+  # Uncomment and set to your frontend specialist agent name
+  # frontend: sveltekit-specialist
+  
+  # Backend tasks (API, server logic, business rules)
+  # backend: flask-specialist
+  
+  # Database tasks (models, migrations, queries)
+  # database: prisma-specialist
+  
+  # Testing tasks (test writing, test fixes)
+  # testing: test-specialist
+  
+  # Default fallback for any unmatched domain
+  default: implementer
+
+
+# ============================================================================
+# DOMAIN DETECTION RULES
+# Customize how tasks are classified into domains
+# ============================================================================
+
+domain_detection:
+  frontend:
+    # File path patterns that indicate frontend work
+    path_patterns:
+      - "src/routes/**/*.svelte"
+      - "src/lib/components/**"
+      - "src/lib/stores/**"
+      - "**/*.css"
+      - "**/*.scss"
+    # Keywords in task descriptions
+    keywords:
+      - "component"
+      - "page"
+      - "UI"
+      - "layout"
+      - "style"
+      - "responsive"
+      - "animation"
+      
+  api:
+    path_patterns:
+      - "src/routes/**/+server.ts"
+      - "src/lib/server/**"
+      - "api/**"
+      - "**/routes/api/**"
+    keywords:
+      - "endpoint"
+      - "API"
+      - "handler"
+      - "middleware"
+      - "authentication"
+      - "authorization"
+      
+  database:
+    path_patterns:
+      - "prisma/**"
+      - "drizzle/**"
+      - "**/models/**"
+      - "**/migrations/**"
+      - "**/db/**"
+    keywords:
+      - "database"
+      - "model"
+      - "migration"
+      - "query"
+      - "schema"
+      - "table"
+      - "relation"
+
+  testing:
+    path_patterns:
+      - "**/*.test.*"
+      - "**/*.spec.*"
+      - "tests/**"
+      - "__tests__/**"
+    keywords:
+      - "test"
+      - "spec"
+      - "coverage"
+      - "mock"
+
+
+# ============================================================================
+# SPEC OVERRIDES
+# Override routing for specific specs (by spec name pattern)
+# ============================================================================
+
+spec_overrides:
+  # Example: Route all tasks in security-related specs to security specialist
+  # "*-security-*":
+  #   all_tasks: security-specialist
+  
+  # Example: Complex auth spec uses auth specialist for everything
+  # "*-auth-*":
+  #   all_tasks: auth-specialist
+  #   standards:
+  #     - backend/authentication
+  #     - global/security
+
+
+# ============================================================================
+# TASK GROUP OVERRIDES
+# Override routing for specific task groups within any spec
+# ============================================================================
+
+task_group_overrides:
+  # Example: Task group 1 is always setup/scaffolding - use generalist
+  # 1:
+  #   agent: implementer
+  #   reason: "Setup tasks are general-purpose"
+  
+  # Example: Final task group is always verification
+  # -1:  # -1 means "last group"
+  #   agent: implementation-verifier
+  #   reason: "Final verification phase"
+
+
+# ============================================================================
+# ROUTING BEHAVIOR
+# Fine-tune how routing decisions are made
+# ============================================================================
+
+behavior:
+  # When multiple domains are detected, use this strategy
+  # Options: "first", "primary", "ask"
+  multi_domain_strategy: "primary"
+  
+  # Minimum confidence threshold for domain detection (0.0 - 1.0)
+  # Below this threshold, falls back to default agent
+  confidence_threshold: 0.6
+  
+  # Log routing decisions for debugging
+  log_decisions: true
+  
+  # Allow manual override in task description
+  # e.g., "[use:security-specialist] Implement OAuth flow"
+  allow_inline_override: true

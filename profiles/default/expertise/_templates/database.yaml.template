@@ -1,0 +1,127 @@
+# Database Expertise
+# Domain: Data models, queries, migrations, data access
+# Last Updated: {{timestamp}}
+
+overview:
+  database: "{{database_type}}"
+  orm: "{{orm_name}}"
+  status: "active"
+  last_verified: "{{timestamp}}"
+  description: |
+    This file captures knowledge about the database architecture,
+    data models, and query patterns used in this project.
+
+architecture:
+  # Database setup
+  connection:
+    url_env_var: "DATABASE_URL"
+    pool_size: 10
+    
+  directories:
+    schema: "prisma/schema.prisma"  # or drizzle/, migrations/, etc.
+    migrations: "prisma/migrations/"
+    seeds: "prisma/seed.ts"
+    queries: "src/lib/server/db/"
+
+  # ORM/Query builder setup
+  orm_config:
+    client_location: "src/lib/server/db/client.ts"
+    instantiation: "Singleton pattern"
+
+schema:
+  # Core data models - update as schema evolves
+  models:
+    # - name: "User"
+    #   table: "users"
+    #   key_fields:
+    #     - name: "id"
+    #       type: "uuid"
+    #       primary: true
+    #     - name: "email"
+    #       type: "string"
+    #       unique: true
+    #   relations:
+    #     - name: "posts"
+    #       type: "hasMany"
+    #       target: "Post"
+
+  # Key relationships
+  relationships:
+    # - from: "User"
+    #   to: "Post"
+    #   type: "one-to-many"
+    #   foreign_key: "author_id"
+
+data_flow:
+  # How data moves through the system
+  read_pattern:
+    - step: "API handler receives request"
+    - step: "Service layer called"
+    - step: "Repository/query function called"
+    - step: "ORM executes query"
+    - step: "Data transformed to DTO"
+    - step: "Response returned"
+    
+  write_pattern:
+    - step: "API handler validates input"
+    - step: "Service layer handles business logic"
+    - step: "Transaction started (if needed)"
+    - step: "Repository performs insert/update"
+    - step: "Related records updated"
+    - step: "Transaction committed"
+
+patterns:
+  # Query patterns used in this project
+  queries:
+    location: "src/lib/server/db/queries/"
+    style: "Function-based repository pattern"
+    example: |
+      // src/lib/server/db/queries/users.ts
+      export async function getUserById(id: string) {
+        return db.user.findUnique({ where: { id } });
+      }
+  
+  transactions:
+    pattern: "Prisma $transaction or manual"
+    usage: "Use for multi-table operations"
+    
+  soft_delete:
+    enabled: false  # Set to true if using soft deletes
+    field: "deleted_at"
+    
+  timestamps:
+    created: "created_at"
+    updated: "updated_at"
+    auto_managed: true
+
+  naming:
+    tables: "snake_case plural (e.g., user_profiles)"
+    columns: "snake_case (e.g., created_at)"
+    indexes: "idx_{table}_{column}"
+
+migrations:
+  # Migration management
+  tool: "Prisma Migrate"  # or Drizzle Kit, raw SQL, etc.
+  commands:
+    generate: "npx prisma migrate dev --name"
+    deploy: "npx prisma migrate deploy"
+    reset: "npx prisma migrate reset"
+  
+  conventions:
+    naming: "YYYYMMDD_description"
+    one_change_per_migration: true
+
+key_files:
+  - path: "prisma/schema.prisma"
+    purpose: "Database schema definition"
+  - path: "src/lib/server/db/client.ts"
+    purpose: "Database client singleton"
+  - path: "prisma/seed.ts"
+    purpose: "Database seeding script"
+
+recent_changes:
+  # Track schema changes
+  # - date: "2025-01-15"
+  #   description: "Added posts table"
+  #   migration: "20250115_add_posts"
+  #   task: "1.3"

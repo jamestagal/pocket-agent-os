@@ -1,41 +1,125 @@
-<img width="1280" height="640" alt="agent-os-og" src="https://github.com/user-attachments/assets/f70671a2-66e8-4c80-8998-d4318af55d10" />
+# Pocket Agent OS
 
-## Your system for spec-driven agentic development.
+A Claude Code native orchestration system that automates spec-driven development with domain-specialist routing.
 
-[Agent OS](https://buildermethods.com/agent-os) transforms AI coding agents from confused interns into productive developers. With structured workflows that capture your standards, your stack, and the unique details of your codebase, Agent OS gives your agents the specs they need to ship quality code on the first try—not the fifth.
+## What It Does
 
-Use it with:
+Run a single command in Claude Code:
+```
+/agent-os pocketflow-implement-all wishlist
+```
 
-✅ Claude Code, Cursor, or any other AI coding tool.
+And it automatically:
+1. **Parses** your `tasks.md` into task groups by `### ` headers
+2. **Routes** each group to the right specialist (database → database-specialist, API → api-specialist, etc.)
+3. **Delegates** sequentially with full context
+4. **Verifies** completion before moving to next group
+5. **Reports** progress throughout
 
-✅ New products or established codebases.
+## Key Components
 
-✅ Big features, small fixes, or anything in between.
+### Specialist Agents (`profiles/default/agents/`)
 
-✅ Any language or framework.
+| Agent | Expertise |
+|-------|-----------|
+| `database-specialist` | Drizzle ORM, SQLite/D1, schema design, migrations |
+| `api-specialist` | SvelteKit server routes, form actions, load functions |
+| `frontend-specialist` | Svelte 5 runes, components, TailwindCSS, shadcn-svelte |
+| `implementer` | General implementation, testing, integration |
 
----
+### Slash Commands (`profiles/default/commands/`)
 
-### Documentation & Installation
+| Command | Purpose |
+|---------|---------|
+| `pocketflow-implement-all` | Automated implementation with specialist routing |
+| `implement-tasks` | Original Agent OS implementation flow |
+| `create-tasks` | Generate tasks.md from spec |
+| `write-spec` | Write specification from requirements |
+| `shape-spec` | Refine and improve a spec |
 
-Docs, installation, usage, & best practices 👉 [It's all here](https://buildermethods.com/agent-os)
+## Installation
 
----
+### 1. Clone the repo
+```bash
+git clone https://github.com/jamestagal/pocket-agent-os.git ~/pocket-agent-os
+```
 
-### Follow updates & releases
+### 2. Install to your project
+```bash
+cd /path/to/your/project
+~/pocket-agent-os/scripts/project-install.sh
+```
 
-Read the [changelog](CHANGELOG.md)
+This creates:
+- `.claude/agents/agent-os/` - Specialist agents
+- `.claude/commands/agent-os/` - Slash commands
+- `agent-os/` - Spec storage, product docs, workflows
 
-[Subscribe to be notified of major new releases of Agent OS](https://buildermethods.com/agent-os)
+### 3. Use in Claude Code
+```
+/agent-os pocketflow-implement-all your-feature-name
+```
 
----
+## Workflow
 
-### Created by Brian Casel @ Builder Methods
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  /agent-os pocketflow-implement-all wishlist                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  1. Preview execution plan, get confirmation                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. Parse tasks.md → identify ### headers                       │
+│     ### Database Layer    → database-specialist                 │
+│     ### API Layer         → api-specialist                      │
+│     ### Frontend          → frontend-specialist                 │
+│     ### Testing           → implementer                         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. Sequential delegation with verification                     │
+│     Task Group 1 → wait for [x] → Task Group 2 → ...           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. Final verification report                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-Created by Brian Casel, the creator of [Builder Methods](https://buildermethods.com), where Brian helps professional software developers and teams build with AI.
+## Domain Routing
 
-Get Brian's free resources on building with AI:
-- [Builder Briefing newsletter](https://buildermethods.com)
-- [YouTube](https://youtube.com/@briancasel)
+The system routes task groups to specialists based on `### ` header text:
 
-Join [Builder Methods Pro](https://buildermethods.com/pro) for official support and connect with our community of AI-first builders:
+| Header Contains | Routes To |
+|-----------------|-----------|
+| "Database" | database-specialist |
+| "API" | api-specialist |
+| "Frontend", "UI", "Component" | frontend-specialist |
+| "Testing", "Integration" | implementer |
+| (default) | implementer |
+
+## Project Structure
+
+```
+pocket-agent-os/
+├── profiles/default/
+│   ├── agents/           # Specialist agent definitions
+│   ├── commands/         # Slash command prompts
+│   ├── workflows/        # Reusable workflow templates
+│   ├── standards/        # Coding standards by domain
+│   └── routing/          # Routing configuration
+├── scripts/
+│   └── project-install.sh
+└── archive/              # Archived CLI implementation
+```
+
+## License
+
+MIT

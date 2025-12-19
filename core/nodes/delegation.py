@@ -294,20 +294,37 @@ class ClaudeCodeDelegationNode(Node):
         mode = inputs["delegation_mode"]
         
         if mode == "file":
-            # Write delegation to pending file
-            pending_path = os.path.join(inputs["project_root"], "agent-os", "pending-delegations.md")
-            os.makedirs(os.path.dirname(pending_path), exist_ok=True)
+            # Write delegation to a single file for Claude Code to read
+            delegation_path = os.path.join(inputs["project_root"], "agent-os", "current-delegation.md")
+            os.makedirs(os.path.dirname(delegation_path), exist_ok=True)
             
-            with open(pending_path, "a") as f:
+            with open(delegation_path, "w") as f:
+                f.write(instruction)
+            
+            # Print confirmation message
+            print(f"\n{'=' * 70}")
+            print(f"📄 DELEGATION WRITTEN TO FILE")
+            print(f"{'=' * 70}")
+            print(f"   Task: {inputs['task_id']} - {task[:50]}...")
+            print(f"   Agent: {agent}")
+            print(f"   File: {delegation_path}")
+            print(f"\n   In Claude Code, use: /agent-os pocketflow-implement")
+            print(f"   Or read the file directly: agent-os/current-delegation.md")
+            print(f"{'=' * 70}\n")
+            
+            result["output"] = f"Delegation written to {delegation_path}"
+            result["executed"] = False
+            
+            # Also append to history
+            history_path = os.path.join(inputs["project_root"], "agent-os", "delegation-history.md")
+            with open(history_path, "a") as f:
                 f.write(f"\n\n{'=' * 70}\n")
                 f.write(f"Task: {inputs['task_id']} - {task[:50]}...\n")
                 f.write(f"Agent: {agent}\n")
+                f.write(f"Time: {datetime.now().isoformat()}\n")
                 f.write(f"{'=' * 70}\n\n")
                 f.write(instruction)
                 f.write("\n")
-            
-            result["output"] = f"Delegation written to {pending_path}"
-            result["executed"] = False
         
         elif mode == "cli":
             # Try to execute via claude CLI
@@ -368,6 +385,10 @@ class ClaudeCodeDelegationNode(Node):
             print(exec_res["instruction"])
             print("=" * 70 + "\n")
             return "print_complete"
+        
+        elif mode == "file":
+            # File mode: Write ONE delegation to file and exit (like print)
+            return "file_complete"
         
         elif mode == "batch":
             # Batch mode: Print delegation and continue to next task

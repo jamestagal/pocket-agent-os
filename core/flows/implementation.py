@@ -118,6 +118,7 @@ def create_implementation_flow(
     delegation - "delegated" >> result_processor  # CLI/file mode: process result
     delegation - "error" >> task_selector  # Skip to next task on error
     delegation - "print_complete" >> session_end  # Legacy print mode: exit after one
+    delegation - "file_complete" >> session_end  # File mode: exit after one delegation
     delegation - "printed" >> task_selector  # Batch mode: continue to next task
     
     # Result processing branching

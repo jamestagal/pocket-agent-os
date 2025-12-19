@@ -32,22 +32,70 @@ Use this routing table to determine which specialist handles each task group:
 | "Integration" | **implementer** |
 | (none of above) | **implementer** |
 
-### STEP 3: Load Context Files
+### STEP 3: Show Execution Plan and Get Confirmation
 
-Read these files to include as context for each specialist:
+**BEFORE executing any tasks**, display a summary for user review:
+
+```
+══════════════════════════════════════════════════════════════════════
+📋 POCKETFLOW IMPLEMENTATION PLAN: $ARGUMENTS
+══════════════════════════════════════════════════════════════════════
+
+📁 Spec: agent-os/specs/$ARGUMENTS/
+
+Task Groups to Execute:
+──────────────────────────────────────────────────────────────────────
+1. [Header Name]
+   🤖 Specialist: [specialist-name]
+   📝 Tasks: [count] tasks
+   • [Task X.0 description]
+     - [Subtask X.1]
+     - [Subtask X.2]
+     - ...
+
+2. [Header Name]
+   🤖 Specialist: [specialist-name]
+   📝 Tasks: [count] tasks
+   • [Task X.0 description]
+     - [Subtask X.1]
+     - ...
+
+[...repeat for each task group...]
+
+──────────────────────────────────────────────────────────────────────
+📊 Summary:
+   • Total Task Groups: [count]
+   • Total Tasks: [count]
+   • Specialists: [list unique specialists]
+   • Execution Order: [specialist1] → [specialist2] → ... → verification
+══════════════════════════════════════════════════════════════════════
+```
+
+Then ask:
+```
+Proceed with implementation? (yes/no)
+```
+
+**Wait for user confirmation before proceeding.** If user says no, stop and ask what they'd like to change.
+
+### STEP 4: Load Context Files
+
+After confirmation, read these files to include as context for each specialist:
 - `agent-os/specs/$ARGUMENTS/spec.md`
 - `agent-os/specs/$ARGUMENTS/planning/requirements.md` (if exists)
 - `agent-os/product/mission.md`
 - `agent-os/product/tech-stack.md`
 
-### STEP 4: Delegate Each Task Group (LOOP)
+### STEP 5: Delegate Each Task Group (LOOP)
 
 For EACH task group identified in Step 1, in order:
 
 **A) Announce the delegation:**
 ```
-📋 Task Group: [Header]
+══════════════════════════════════════════════════════════════════════
+🚀 STARTING TASK GROUP [N/total]: [Header]
 🤖 Delegating to: [specialist-name]
+══════════════════════════════════════════════════════════════════════
 ```
 
 **B) Delegate to the specialist with this instruction:**
@@ -78,13 +126,26 @@ Use the [specialist-name] subagent to implement this task group:
 
 After the specialist finishes, verify that tasks in this group are marked `[x]` in tasks.md.
 
-**D) Proceed to next task group**
+**D) Report progress:**
+```
+✅ Task Group [N/total] Complete: [Header]
+   Completed by: [specialist-name]
+   Tasks marked: [count] [x]
+```
 
-Repeat steps A-C for each remaining task group.
+**E) Proceed to next task group**
 
-### STEP 5: Final Verification
+Repeat steps A-E for each remaining task group.
+
+### STEP 6: Final Verification
 
 After ALL task groups show `[x]` for all tasks:
+
+```
+══════════════════════════════════════════════════════════════════════
+🔍 RUNNING FINAL VERIFICATION
+══════════════════════════════════════════════════════════════════════
+```
 
 ```
 Use the implementation-verifier subagent to verify the complete implementation:
@@ -98,24 +159,30 @@ Instructions:
 4. Produce verification report at agent-os/specs/$ARGUMENTS/verifications/final-verification.md
 ```
 
-### STEP 6: Report Completion
+### STEP 7: Report Completion
 
-Output a summary:
+Output a final summary:
 ```
-✅ Implementation Complete: $ARGUMENTS
+══════════════════════════════════════════════════════════════════════
+✅ IMPLEMENTATION COMPLETE: $ARGUMENTS
+══════════════════════════════════════════════════════════════════════
 
 Task Groups Completed:
-- [x] Database Layer (database-specialist)
-- [x] API Layer (api-specialist)
-- [x] Frontend Components (frontend-specialist)
-- [x] Integration & Testing (implementer)
+  ✅ 1. Database Layer → database-specialist
+  ✅ 2. API Layer → api-specialist
+  ✅ 3. Frontend Components → frontend-specialist
+  ✅ 4. Integration & Testing → implementer
 
-Verification: agent-os/specs/$ARGUMENTS/verifications/final-verification.md
+📄 Verification Report: agent-os/specs/$ARGUMENTS/verifications/final-verification.md
+
+🎉 Feature ready for testing!
+══════════════════════════════════════════════════════════════════════
 ```
 
 ## IMPORTANT NOTES
 
+- **Always show the execution plan and wait for confirmation before starting**
 - Execute task groups SEQUENTIALLY (dependencies flow Database → API → Frontend → Testing)
 - Each specialist must mark tasks `[x]` before proceeding to next group
 - If a specialist encounters an error, report it and ask user whether to retry or skip
-- The specialist subagents contain domain expertise for their area (database patterns, API patterns, etc.)
+- The specialist subagents contain domain expertise for their area

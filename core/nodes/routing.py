@@ -101,6 +101,8 @@ class AgentSelectorNode(Node):
             "task_description": task_description,
             "task_files": task_files,
             "full_task": task,
+            "task_specialist": task.get("specialist"),  # From parsed task domain header
+            "task_domain": task.get("domain"),          # Domain header text
             "project_root": project_root,
             "routing_file": os.path.join(project_root, self.routing_file),
             "available_agents": shared.get("available_agents"),
@@ -128,7 +130,19 @@ class AgentSelectorNode(Node):
             result["reason"] = f"Explicit override: [use:{result['agent']}]"
             return result
         
-        # 2. Load routing rules
+        # 2. Check for specialist from task domain header (highest priority after override)
+        task_specialist = inputs.get("task_specialist")
+        task_domain = inputs.get("task_domain")
+        # If task has a domain header, use that specialist (even if it's "implementer")
+        # Only fall through to keyword matching if no domain header was found
+        if task_domain and task_domain != "default":
+            result["agent"] = task_specialist or self.default_agent
+            result["confidence"] = "high"
+            result["detected_domains"] = [task_domain] if task_domain else []
+            result["reason"] = f"Domain header routing: {task_domain} → {result['agent']}"
+            return result
+        
+        # 3. Load routing rules (fallback for tasks without domain header)
         rules = self.default_rules.copy()
         
         if os.path.exists(inputs["routing_file"]):
@@ -143,7 +157,7 @@ class AgentSelectorNode(Node):
             except (yaml.YAMLError, IOError):
                 pass
         
-        # 3. Score each agent
+        # 4. Score each agent (keyword-based fallback)
         available = inputs["available_agents"]
         
         for agent_name, agent_rules in rules["agents"].items():
@@ -187,7 +201,7 @@ class AgentSelectorNode(Node):
                 "matches": matches,
             }
         
-        # 4. Select best agent
+        # 5. Select best agent from keyword scoring
         if result["scores"]:
             best_agent = max(result["scores"].keys(), key=lambda a: result["scores"][a]["score"])
             best_score = result["scores"][best_agent]["score"]

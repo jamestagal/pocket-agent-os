@@ -33,29 +33,61 @@ def parse_tasks_from_markdown(tasks_content: str) -> List[Dict[str, Any]]:
     - id: Task identifier (e.g., "1.1" or generated)
     - description: Task text
     - status: "pending" or "completed"
-    - phase: Extracted from section header if available
+    - domain: Domain/layer from header (e.g., "Database Layer", "API Layer")
+    - group: Task group name
+    - specialist: Suggested specialist agent based on domain
     """
     import re
     
     tasks = []
-    current_phase = "default"
+    current_domain = "default"
     current_group = None
+    current_specialist = "implementer"
+    
+    # Domain to specialist mapping
+    domain_specialist_map = {
+        "database": "database-specialist",
+        "api": "api-specialist",
+        "frontend": "frontend-specialist",
+        "ui": "frontend-specialist",
+        "component": "frontend-specialist",
+        "testing": "implementer",
+        "integration": "implementer",
+        "test": "implementer",
+    }
+    
+    def get_specialist_for_domain(domain: str) -> str:
+        """Map domain header to specialist agent."""
+        domain_lower = domain.lower()
+        for key, specialist in domain_specialist_map.items():
+            if key in domain_lower:
+                return specialist
+        return "implementer"
     
     lines = tasks_content.split('\n')
     
     for line in lines:
-        # Track section headers for phase/group context
-        if line.startswith('### '):
-            # Task Group header like "### Task Group 1: Database Layer"
+        # Track domain/layer headers (h3): ### Database Layer, ### API Layer, etc.
+        if line.startswith('### ') and not line.startswith('#### '):
             header = line[4:].strip()
+            # Skip if it's a "Task Group" header at h3 level (shouldn't happen but be safe)
+            if 'Task Group' not in header:
+                current_domain = header
+                current_specialist = get_specialist_for_domain(header)
+        
+        # Track task group headers (h4): #### Task Group 1: Description
+        elif line.startswith('#### '):
+            header = line[5:].strip()
             if 'Task Group' in header:
                 current_group = header
-                # Extract phase from header (e.g., "Database Layer")
-                if ':' in header:
-                    current_phase = header.split(':', 1)[1].strip()
-        elif line.startswith('## '):
-            # Section header like "## Database Layer"
-            current_phase = line[3:].strip()
+        
+        # Fallback: h2 headers as domain (## Database Layer)
+        elif line.startswith('## ') and not line.startswith('### '):
+            header = line[3:].strip()
+            # Only treat as domain if it looks like a layer name
+            if any(kw in header.lower() for kw in ['layer', 'database', 'api', 'frontend', 'ui', 'testing', 'component']):
+                current_domain = header
+                current_specialist = get_specialist_for_domain(header)
         
         # Parse task items
         # Match patterns like: - [ ] 1.1 Description or - [x] Description
@@ -79,8 +111,9 @@ def parse_tasks_from_markdown(tasks_content: str) -> List[Dict[str, Any]]:
                 "description": description,
                 "full_text": task_text,
                 "status": "completed" if checkbox.lower() == 'x' else "pending",
-                "phase": current_phase,
+                "domain": current_domain,
                 "group": current_group,
+                "specialist": current_specialist,
             }
             tasks.append(task)
     
